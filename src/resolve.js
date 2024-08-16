@@ -2,12 +2,10 @@ const { ethers } = require("ethers");
 const { MulticallProvider } = require("@ethers-ext/provider-multicall");
 const dotenv = require('dotenv');
 const { decodeContentHash } = require('./contentHash');
+const { ABI } = require('./config/abi');
+const { contracts } = require('./config/contracts');
 
 dotenv.config();
-
-const ENS_REGISTRY_ABI = [
-    "function owner(bytes32 node) external view returns (address)"
-];
 
 const validateEnsName = (name) => {
     try {
@@ -27,8 +25,8 @@ const resolve = async (name) => {
         const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
         const multicallProvider = new MulticallProvider(provider);
 
-        const ensRegistryAddress = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e";
-        const ensRegistry = new ethers.Contract(ensRegistryAddress, ENS_REGISTRY_ABI, multicallProvider);
+        const ensRegistryAddress = contracts.REGISTRY;
+        const ensRegistry = new ethers.Contract(ensRegistryAddress, ABI.REGISTRY, multicallProvider);
 
         const namehash = ethers.namehash(name);
 
@@ -40,13 +38,7 @@ const resolve = async (name) => {
             return { owner };
         }
 
-        const resolverAbi = [
-            "function addr(bytes32) view returns (address)",
-            "function contenthash(bytes32) view returns (bytes)",
-            "function text(bytes32, string) view returns (string)",
-            "event TextChanged(bytes32 indexed node, string indexed key, string key)",
-        ];
-        const contract = new ethers.Contract(resolver.address, resolverAbi, multicallProvider);
+        const contract = new ethers.Contract(resolver.address, ABI.RESOLVER, multicallProvider);
 
         const textChangedFilter = contract.filters.TextChanged(namehash);
 

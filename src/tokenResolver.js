@@ -1,4 +1,4 @@
-const keccak256 = require('js-sha3').keccak256;
+/*const keccak256 = require('js-sha3').keccak256;
 const { ens_normalize } = require('@adraffy/ens-normalize');
 
 const namehash = (name) => {
@@ -26,4 +26,4 @@ function resolveTokenId721(label) {
     return BigInt(labelHash).toString();
 }
 
-module.exports = { namehash, resolveTokenId1155, resolveTokenId721 };
+module.exports = { namehash, resolveTokenId1155, resolveTokenId721 };*/

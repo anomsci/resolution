@@ -1,110 +1,81 @@
-require('dotenv').config();
-const Web3 = require('web3');
-const contentHash = require('content-hash');
-const { namehash, resolveTokenId1155, resolveTokenId721 } = require('./tokenResolver');
+const { ethers } = require("ethers");
+const { MulticallProvider } = require("@ethers-ext/provider-multicall");
+const dotenv = require('dotenv');
+const { decodeContentHash } = require('./contentHash');
 
-const provider = new Web3.default.providers.HttpProvider(process.env.HTTP_PROVIDER_URL);
-const web3 = new Web3.default(provider);
+dotenv.config();
 
-const ensPublicResolverABI = [
-  { constant: true, inputs: [{ name: 'node', type: 'bytes32' }], name: 'contenthash', outputs: [{ name: '', type: 'bytes' }], payable: false, stateMutability: 'view', type: 'function' },
-  { constant: true, inputs: [{ name: 'node', type: 'bytes32' }], name: 'addr', outputs: [{ name: '', type: 'address' }], payable: false, stateMutability: 'view', type: 'function' },
-  { constant: false, inputs: [{ internalType: "bytes[]", name: "data", type: "bytes[]" }], name: "multicall", outputs: [{ internalType: "bytes[]", name: "results", type: "bytes[]" }], payable: false, stateMutability: "nonpayable", type: "function" }
+const ENS_REGISTRY_ABI = [
+    "function owner(bytes32 node) external view returns (address)"
 ];
 
-const ensRegistryABI = [
-  { constant: true, inputs: [{ name: "node", type: "bytes32" }], name: "owner", outputs: [{ name: "", type: "address" }], payable: false, stateMutability: "view", type: "function" }
-];
-
-const ensPublicResolverAddresses = ['0x4976fb03C32e5B8cfe2b6cCB31c09Ba78EBaBa41', '0x231b0Ee14048e9dCcD1d247744d114a4EB5E8E63'];
-const ensRegistryAddress = '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e';
-const ensNameWrapperAddress = '0xD4416b13d2b3a9aBae7AcD5D6C2BbDBE25686401';
-const contractAddresses = [...ensPublicResolverAddresses, ensRegistryAddress, ensNameWrapperAddress];
-
-const decodeContentHash = (encodedContentHash) => {
-  if (!encodedContentHash || encodedContentHash === '0x') return null;
-  const codec = contentHash.getCodec(encodedContentHash);
-  const decoded = contentHash.decode(encodedContentHash);
-  return codec === 'ipfs-ns' ? { type: 'ipfs', hash: decoded } : codec === 'ipns-ns' ? { type: 'ipns', name: decoded } : null;
-}
-
-async function resolveENS(domain) {
-  // ERC-1155 tokenId (Default)
-  const namehashValue = await namehash(domain);
-  const tokenId_1155 = resolveTokenId1155(namehashValue);
-
-  // ERC-721 tokenId
-  const label = domain.split('.')[0];
-  const tokenId_721 = resolveTokenId721(label);
-
-  const ensRegistryContract = new web3.eth.Contract(ensRegistryABI, ensRegistryAddress);
-
-  let owner = '0x0000000000000000000000000000000000000000';
-  let foundValidWalletAddress = false;
-  try {
-    owner = await ensRegistryContract.methods.owner(namehashValue).call();
-  } catch (e) {
-    // Error
-  }
-
-  const hasValidTokenId = tokenId_1155 || tokenId_721;
-
-  for (let i = 0; i < ensPublicResolverAddresses.length; i++) {
-      const resolverContract = new web3.eth.Contract(ensPublicResolverABI, ensPublicResolverAddresses[i]);
-
-      try {
-          // Encode the calls for multicall
-          const addrCallData = resolverContract.methods.addr(namehashValue).encodeABI();
-          const contentHashCallData = resolverContract.methods.contenthash(namehashValue).encodeABI();
-
-          // Use multicall
-          const results = await resolverContract.methods.multicall([addrCallData, contentHashCallData]).call();
-
-          // Decode the results
-          const walletAddress = web3.eth.abi.decodeParameter('address', results[0]);
-          const encodedContentHash = web3.eth.abi.decodeParameter('bytes', results[1]);
-
-          if (walletAddress && walletAddress !== '0x0000000000000000000000000000000000000000') {
-            foundValidWalletAddress = true;
-    
-            // Check if owner is in contractAddresses and update if necessary
-            if (contractAddresses.includes(owner)) {
-              owner = walletAddress;
-            }
-
-          const decodedContentHash = decodeContentHash(encodedContentHash);
-
-          return {
-            owner,
-            walletAddress,
-            content: decodedContentHash || null,
-            namehashValue,
-            tokenId_1155,
-            tokenId_721
-          };
+const validateEnsName = (name) => {
+    try {
+        ethers.namehash(name);
+    } catch (error) {
+        if (error.code === 'INVALID_ARGUMENT') {
+            throw new Error(`Invalid ENS name: ${error.shortMessage}`);
         }
-      } catch (e) {
-          // Continue to the next resolver if this one fails
-      }
-  }
+        throw error;
+    }
+};
 
-  // Fallback if owner is in contractAddresses and the walletAddress was not found
-  if (!foundValidWalletAddress && contractAddresses.includes(owner)) {
-    owner = '0x0000000000000000000000000000000000000000';
-  }
+const resolve = async (name) => {
+    try {
+        validateEnsName(name);
 
-  // Fallback for no valid tokenId
-  if (!hasValidTokenId) {
-    console.log("Null ENS Data.");
-    return null;
-  }
+        const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+        const multicallProvider = new MulticallProvider(provider);
 
-  return {
-    owner,
-    namehashValue,
-    tokenId_1155,
-    tokenId_721
-  }
-}
+        const ensRegistryAddress = "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e";
+        const ensRegistry = new ethers.Contract(ensRegistryAddress, ENS_REGISTRY_ABI, multicallProvider);
 
-module.exports = { resolveENS };
+        const namehash = ethers.namehash(name);
+
+        const owner = await ensRegistry.owner(namehash);
+
+        const resolver = await multicallProvider.getResolver(name);
+        if (!resolver) {
+            console.error(`No resolver found for ${name}`);
+            return { owner };
+        }
+
+        const resolverAbi = [
+            "function addr(bytes32) view returns (address)",
+            "function contenthash(bytes32) view returns (bytes)",
+            "function text(bytes32, string) view returns (string)",
+            "event TextChanged(bytes32 indexed node, string indexed key, string key)",
+        ];
+        const contract = new ethers.Contract(resolver.address, resolverAbi, multicallProvider);
+
+        const textChangedFilter = contract.filters.TextChanged(namehash);
+
+        const logs = await contract.queryFilter(textChangedFilter);
+        const textKeys = [...new Set(logs.map(log => log.args.key))];
+
+        const calls = [
+            { key: 'owner', value: owner },
+            contract.addr(namehash).catch(() => null).then(result => ({ key: 'address', value: result })),
+            contract.contenthash(namehash).catch(() => null).then(result => {
+                const decoded = decodeContentHash(result);
+                return { key: 'content', value: decoded };
+            }),
+            ...textKeys.map(key => resolver.getText(key).catch(() => null).then(result => ({ key, value: result }))),
+        ];
+
+        const results = await Promise.all(calls);
+
+        const resolvedData = results.reduce((acc, { key, value }) => {
+            if (value) acc[key] = value;
+            return acc;
+        }, {});
+
+        return resolvedData;
+
+    } catch (error) {
+        console.error(`Failed to resolve ENS name ${name}: ${error.message}`);
+        return null;
+    }
+};
+
+module.exports = { resolve };

@@ -7,6 +7,4 @@ const decodeContentHash = (encodedContentHash) => {
   return codec === 'ipfs-ns' ? { type: 'ipfs', hash: decoded } : codec === 'ipns-ns' ? { type: 'ipns', name: decoded } : null;
 }
 
-module.exports = {
-  decodeContentHash
-};
+module.exports = { decodeContentHash };

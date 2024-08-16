@@ -1,29 +1,63 @@
-/*const keccak256 = require('js-sha3').keccak256;
-const { ens_normalize } = require('@adraffy/ens-normalize');
+const { ethers } = require('ethers');
+const { ABI } = require('./config/abi');
+const { contracts } = require('./config/contracts');
+const { keccak256 } = require('js-sha3');
+const dotenv = require('dotenv');
 
-const namehash = (name) => {
-  // Normalize the name using @adraffy/ens-normalize
-  const normalized = ens_normalize(name);
+dotenv.config();
 
-  return normalized.split('.')
-      .reverse()
-      .reduce((node, label) => {
-          // Convert label to a hash using keccak256 from js-sha3
-          const labelHash = keccak256(label);
-          // Concatenate node and labelHash (minus the '0x' prefix) and convert to a Buffer for hashing
-          return '0x' + keccak256(Buffer.from(node.slice(2) + labelHash, 'hex'));
-      }, '0x0000000000000000000000000000000000000000000000000000000000000000');
-};
+const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
 
-// Wrapped Names | ERC-1155 (Default)
-function resolveTokenId1155(namehashValue) {
-    return BigInt(namehashValue).toString();
+const getNamehash = (name) => {
+    return name.split('.')
+        .reverse()
+        .reduce((node, label) => {
+            const labelHash = keccak256(label);
+            return '0x' + keccak256(Buffer.from(node.slice(2) + labelHash, 'hex'));
+        }, '0x0000000000000000000000000000000000000000000000000000000000000000');
+  };
+
+function resolveWrappedTokenId(namehash) {
+    return BigInt(namehash).toString();
 }
 
-// Unwrapped Names | ERC-721
-function resolveTokenId721(label) {
-    const labelHash = '0x' + keccak256(label); // Prefix 0x as js-sha3 returns without
+function resolveUnwrappedTokenId(label) {
+    const labelHash = '0x' + keccak256(label);
     return BigInt(labelHash).toString();
 }
 
-module.exports = { namehash, resolveTokenId1155, resolveTokenId721 };*/
+async function validateTokenIds(ensName) {
+    if (!ABI.name_wrapper || !ABI.registrar) {
+        throw new Error('ABI is not defined. Please ensure that the ABI files are correctly imported.');
+    }
+
+    const namehash = getNamehash(ensName);
+    const wrappedTokenId = resolveWrappedTokenId(namehash);
+    const label = ensName.split('.')[0];
+    const unwrappedTokenId = resolveUnwrappedTokenId(label);
+
+    const nameWrapperContract = new ethers.Contract(contracts.name_wrapper, ABI.name_wrapper, provider);
+    const registrarContract = new ethers.Contract(contracts.registrar, ABI.registrar, provider);
+
+    try {
+        const wrappedOwner = await nameWrapperContract.ownerOf(wrappedTokenId);
+        if (wrappedOwner && wrappedOwner !== ethers.ZeroAddress) {
+            return { tokenId: wrappedTokenId, status: 'wrapped', owner: wrappedOwner };
+        }
+    } catch (e) {
+        console.error(`Failed to validate wrapped tokenId ${wrappedTokenId} against nameWrapper contract:`, e);
+    }
+
+    try {
+        const unwrappedOwner = await registrarContract.ownerOf(unwrappedTokenId);
+        if (unwrappedOwner && unwrappedOwner !== ethers.ZeroAddress) {
+            return { tokenId: unwrappedTokenId, status: 'unwrapped', owner: unwrappedOwner };
+        }
+    } catch (e) {
+        console.error(`Failed to validate unwrapped tokenId ${unwrappedTokenId} against registrar contract:`, e);
+    }
+
+    return null;
+}
+
+module.exports = { validateTokenIds };

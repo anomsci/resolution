@@ -1,13 +1,10 @@
 const { ethers } = require("ethers");
-const { MulticallProvider } = require("@ethers-ext/provider-multicall");
-const dotenv = require('dotenv');
+const { getMulticallProvider } = require('./providers');
 const { decodeContentHash } = require('./contentHash');
 const { ABI } = require('./config/abi');
 const { contracts } = require('./config/contracts');
 const { validateTokenIds } = require('./tokenResolver');
 const { ens_normalize } = require('@adraffy/ens-normalize');
-
-dotenv.config();
 
 const validateName = (nameInput) => {
     try {
@@ -28,8 +25,7 @@ const resolve = async (nameInput) => {
     try {
         const name = validateName(nameInput);
 
-        const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
-        const multicallProvider = new MulticallProvider(provider);
+        const multicallProvider = getMulticallProvider();
 
         const ensRegistryAddress = contracts.registry;
         const ensRegistry = new ethers.Contract(ensRegistryAddress, ABI.registry, multicallProvider);

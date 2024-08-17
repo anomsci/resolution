@@ -2,11 +2,9 @@ const { ethers } = require('ethers');
 const { ABI } = require('./config/abi');
 const { contracts } = require('./config/contracts');
 const { keccak256 } = require('js-sha3');
-const dotenv = require('dotenv');
+const { getProvider } = require('./providers');
 
-dotenv.config();
-
-const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
+const provider = getProvider();
 
 function resolveWrappedTokenId(namehash) {
     return BigInt(namehash).toString();

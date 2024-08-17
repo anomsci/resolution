@@ -35,6 +35,20 @@ const resolve = async (nameInput) => {
         const ensRegistry = new ethers.Contract(ensRegistryAddress, ABI.registry, multicallProvider);
 
         const namehash = ethers.namehash(name);
+        const labels = name.split('.');
+
+        const isSubname = labels.length > 2;
+
+        let parentNamehash, parentName, parentTokenData, parentManager, parentOwner;
+        if (isSubname) {
+            const parentDomain = labels.slice(1).join('.');
+            parentName = validateName(parentDomain);
+            parentNamehash = ethers.namehash(parentName);
+
+            parentTokenData = await validateTokenIds(parentName);
+            parentManager = await ensRegistry.owner(parentNamehash);
+            parentOwner = parentTokenData?.owner;
+        }
 
         const manager = await ensRegistry.owner(namehash);
 
@@ -44,37 +58,99 @@ const resolve = async (nameInput) => {
         const resolver = await multicallProvider.getResolver(name);
         if (!resolver) {
             console.error(`No resolver found for ${name}`);
-            return { manager, tokenId, status, owner };
+            return null;
         }
 
         const contract = new ethers.Contract(resolver.address, ABI.resolver, multicallProvider);
 
-        const textChangedFilter = contract.filters.TextChanged(namehash);
-
-        const logs = await contract.queryFilter(textChangedFilter);
-        const textKeys = [...new Set(logs.map(log => log.args.key))];
+        const TEXT_KEYS = [
+            'avatar', 'description', 'display', 'email', 'keywords', 'mail', 
+            'notice', 'location', 'phone', 'url'
+        ];
 
         const calls = [
-            { key: 'owner', value: owner },
             { key: 'manager', value: manager },
-            contract.addr(namehash).catch(() => null).then(result => ({ key: 'address', value: result })),
+            contract.addr(namehash).catch(() => null).then(result => {
+                if (result && result !== '0x0000000000000000000000000000000000000000') {
+                    return { key: 'address', value: result };
+                }
+                return null;
+            }),
             contract.contenthash(namehash).catch(() => null).then(result => {
                 const decoded = decodeContentHash(result);
-                return { key: 'content', value: decoded };
+                if (decoded !== undefined) {
+                    return { key: 'content', value: decoded };
+                }
+                return null;
             }),
-            ...textKeys.map(key => resolver.getText(key).catch(() => null).then(result => ({ key, value: result }))),
-            { key: 'tokenId', value: tokenId },
-            { key: 'status', value: status },
+            ...TEXT_KEYS.map(key => resolver.getText(key).catch(() => null).then(result => {
+                if (result !== null && result !== undefined) {
+                    return { key, value: result };
+                }
+                return null;
+            })),
         ];
 
         const results = await Promise.all(calls);
 
-        const resolvedData = results.reduce((acc, { key, value }) => {
-            if (value) acc[key] = value;
+        const resolvedData = results.reduce((acc, item) => {
+            if (item && item.value) {
+                if (TEXT_KEYS.includes(item.key)) {
+                    acc.text = acc.text || {};
+                    acc.text[item.key] = item.value;
+                } else {
+                    acc[item.key] = item.value;
+                }
+            }
             return acc;
         }, {});
 
-        return resolvedData;
+        if (isSubname) {
+            if (status !== 'wrapped') {
+                return {
+                    manager: resolvedData.manager,
+                    ...resolvedData.address && { address: resolvedData.address },
+                    ...resolvedData.content && { content: resolvedData.content },
+                    ...resolvedData.text && { text: resolvedData.text },
+                    parent: {
+                        owner: parentOwner,
+                        manager: parentManager,
+                        namehash: parentNamehash,
+                        tokenId: parentTokenData?.tokenId,
+                        status: parentTokenData?.status,
+                    }
+                };
+            }
+
+            return {
+                owner,
+                manager: resolvedData.manager,
+                ...resolvedData.address && { address: resolvedData.address },
+                ...resolvedData.content && { content: resolvedData.content },
+                ...resolvedData.text && { text: resolvedData.text },
+                namehash,
+                tokenId,
+                status,
+                parent: {
+                    owner: parentOwner,
+                    manager: parentManager,
+                    namehash: parentNamehash,
+                    tokenId: parentTokenData?.tokenId,
+                    status: parentTokenData?.status,
+                }
+            };
+        }
+
+        return {
+            owner,
+            manager: resolvedData.manager,
+            ...resolvedData.address && { address: resolvedData.address },
+            ...resolvedData.content && { content: resolvedData.content },
+            ...resolvedData.text && { text: resolvedData.text },
+            namehash,
+            tokenId,
+            status,
+        };
 
     } catch (error) {
         console.error(`Failed to resolve ENS name ${nameInput}: ${error.message}`);

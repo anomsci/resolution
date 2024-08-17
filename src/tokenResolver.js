@@ -8,15 +8,6 @@ dotenv.config();
 
 const provider = new ethers.JsonRpcProvider(process.env.RPC_URL);
 
-const getNamehash = (name) => {
-    return name.split('.')
-        .reverse()
-        .reduce((node, label) => {
-            const labelHash = keccak256(label);
-            return '0x' + keccak256(Buffer.from(node.slice(2) + labelHash, 'hex'));
-        }, '0x0000000000000000000000000000000000000000000000000000000000000000');
-  };
-
 function resolveWrappedTokenId(namehash) {
     return BigInt(namehash).toString();
 }
@@ -31,7 +22,7 @@ async function validateTokenIds(ensName) {
         throw new Error('ABI is not defined. Please ensure that the ABI files are correctly imported.');
     }
 
-    const namehash = getNamehash(ensName);
+    const namehash = ethers.namehash(ensName);
     const wrappedTokenId = resolveWrappedTokenId(namehash);
     const label = ensName.split('.')[0];
     const unwrappedTokenId = resolveUnwrappedTokenId(label);

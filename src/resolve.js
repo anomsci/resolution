@@ -5,6 +5,7 @@ const { ABI } = require('./config/abi');
 const { contracts } = require('./config/contracts');
 const { validateTokenIds } = require('./tokenResolver');
 const { ens_normalize } = require('@adraffy/ens-normalize');
+const { prepareResult } = require('./result');
 
 const validateName = (nameInput) => {
     try {
@@ -89,64 +90,19 @@ const resolve = async (nameInput) => {
 
         const results = await Promise.all(calls);
 
-        const resolvedData = results.reduce((acc, item) => {
-            if (item && item.value) {
-                if (TEXT_KEYS.includes(item.key)) {
-                    acc.text = acc.text || {};
-                    acc.text[item.key] = item.value;
-                } else {
-                    acc[item.key] = item.value;
-                }
-            }
-            return acc;
-        }, {});
-
-        if (isSubname) {
-            if (status !== 'wrapped') {
-                return {
-                    manager: resolvedData.manager,
-                    ...resolvedData.address && { address: resolvedData.address },
-                    ...resolvedData.content && { content: resolvedData.content },
-                    ...resolvedData.text && { text: resolvedData.text },
-                    parent: {
-                        owner: parentOwner,
-                        manager: parentManager,
-                        namehash: parentNamehash,
-                        tokenId: parentTokenData?.tokenId,
-                        status: parentTokenData?.status,
-                    }
-                };
-            }
-
-            return {
-                owner,
-                manager: resolvedData.manager,
-                ...resolvedData.address && { address: resolvedData.address },
-                ...resolvedData.content && { content: resolvedData.content },
-                ...resolvedData.text && { text: resolvedData.text },
-                namehash,
-                tokenId,
-                status,
-                parent: {
-                    owner: parentOwner,
-                    manager: parentManager,
-                    namehash: parentNamehash,
-                    tokenId: parentTokenData?.tokenId,
-                    status: parentTokenData?.status,
-                }
-            };
-        }
-
-        return {
-            owner,
-            manager: resolvedData.manager,
-            ...resolvedData.address && { address: resolvedData.address },
-            ...resolvedData.content && { content: resolvedData.content },
-            ...resolvedData.text && { text: resolvedData.text },
-            namehash,
-            tokenId,
+        const resolvedData = prepareResult(results, {
+            isSubname,
             status,
-        };
+            tokenData,
+            owner,
+            namehash,
+            parentOwner,
+            parentManager,
+            parentNamehash,
+            parentTokenData
+        });
+
+        return resolvedData;
 
     } catch (error) {
         console.error(`Failed to resolve ENS name ${nameInput}: ${error.message}`);

@@ -1,8 +1,7 @@
 const { ethers } = require("ethers");
 const { getMulticallProvider } = require('./providers');
 const { decodeContentHash } = require('./contentHash');
-const { ABI } = require('./config/abi');
-const { contracts } = require('./config/contracts');
+const { ABI, contracts, textKeys } = require('./config');
 const { validateTokenIds } = require('./tokenResolver');
 const { ens_normalize } = require('@adraffy/ens-normalize');
 const { prepareResult } = require('./result');
@@ -50,7 +49,7 @@ const resolve = async (nameInput) => {
         const manager = await ensRegistry.owner(namehash);
 
         const tokenData = await validateTokenIds(name);
-        const { tokenId, status, owner } = tokenData || {};
+        const { status, owner } = tokenData || {};
 
         const resolver = await multicallProvider.getResolver(name);
         if (!resolver) {
@@ -59,11 +58,6 @@ const resolve = async (nameInput) => {
         }
 
         const contract = new ethers.Contract(resolver.address, ABI.resolver, multicallProvider);
-
-        const TEXT_KEYS = [
-            'avatar', 'description', 'display', 'email', 'keywords', 'mail', 
-            'notice', 'location', 'phone', 'url'
-        ];
 
         const calls = [
             { key: 'manager', value: manager },
@@ -80,7 +74,7 @@ const resolve = async (nameInput) => {
                 }
                 return null;
             }),
-            ...TEXT_KEYS.map(key => resolver.getText(key).catch(() => null).then(result => {
+            ...textKeys.map(key => resolver.getText(key).catch(() => null).then(result => {
                 if (result !== null && result !== undefined) {
                     return { key, value: result };
                 }
@@ -95,10 +89,8 @@ const resolve = async (nameInput) => {
             status,
             tokenData,
             owner,
-            namehash,
             parentOwner,
             parentManager,
-            parentNamehash,
             parentTokenData
         });
 

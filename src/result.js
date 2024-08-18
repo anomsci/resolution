@@ -4,10 +4,8 @@ const prepareResult = (results, context) => {
         status,
         tokenData,
         owner,
-        namehash,
         parentOwner,
         parentManager,
-        parentNamehash,
         parentTokenData
     } = context;
 
@@ -38,7 +36,6 @@ const prepareResult = (results, context) => {
                 parent: {
                     owner: parentOwner,
                     manager: parentManager,
-                    namehash: parentNamehash,
                     tokenId: parentTokenData?.tokenId,
                     status: parentTokenData?.status,
                 }
@@ -51,13 +48,11 @@ const prepareResult = (results, context) => {
             ...resolvedData.address && { address: resolvedData.address },
             ...resolvedData.content && { content: resolvedData.content },
             ...resolvedData.text && { text: resolvedData.text },
-            namehash,
             tokenId: tokenData?.tokenId,
             status,
             parent: {
                 owner: parentOwner,
                 manager: parentManager,
-                namehash: parentNamehash,
                 tokenId: parentTokenData?.tokenId,
                 status: parentTokenData?.status,
             }
@@ -70,7 +65,6 @@ const prepareResult = (results, context) => {
         ...resolvedData.address && { address: resolvedData.address },
         ...resolvedData.content && { content: resolvedData.content },
         ...resolvedData.text && { text: resolvedData.text },
-        namehash,
         tokenId: tokenData?.tokenId,
         status,
     };

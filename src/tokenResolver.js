@@ -1,6 +1,5 @@
 const { ethers } = require('ethers');
-const { ABI } = require('./config/abi');
-const { contracts } = require('./config/contracts');
+const { ABI, contracts } = require('./config');
 const { keccak256 } = require('js-sha3');
 const { getProvider } = require('./providers');
 

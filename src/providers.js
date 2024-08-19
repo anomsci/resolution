@@ -1,6 +1,7 @@
 const { ethers } = require("ethers");
 const { MulticallProvider } = require("@ethers-ext/provider-multicall");
 const dotenv = require('dotenv');
+const { providerConfig } = require('./config');
 
 dotenv.config();
 
@@ -9,7 +10,8 @@ let multicallProviderInstance = null;
 
 const getProvider = () => {
     if (!providerInstance) {
-        providerInstance = new ethers.JsonRpcProvider(process.env.RPC_URL);
+        const rpcUrl = process.env[providerConfig.rpcEnv] || process.env.RPC_URL;
+        providerInstance = new ethers.JsonRpcProvider(rpcUrl);
     }
     return providerInstance;
 };

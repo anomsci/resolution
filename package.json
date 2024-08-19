@@ -1,13 +1,18 @@
 {
-  "name": "ens-resolver",
+  "name": "@anomsci/resolution",
   "version": "1.0.0",
-  "description": "To make it easy for you to get started with GitLab, here's a list of recommended next steps.",
-  "main": "index.js",
+  "description": "A simple resolution library for Ethereum Name Service (ENS) domains.",
+  "main": "src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
-  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@gitlab.com/anomsci/resolution.git"
+  },
+  "author": "Jacob Haap",
+  "license": "MIT",
+  "homepage": "https://github.com/anomsci/resolution/",
   "dependencies": {
     "@adraffy/ens-normalize": "^1.10.1",
     "@ethers-ext/provider-multicall": "^6.0.0-beta.2",

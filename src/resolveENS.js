@@ -39,39 +39,33 @@ const resolveENS = async (name) => {
         parentManager = await ensRegistry.owner(parentNamehash);
     }
 
-    const manager = await ensRegistry.owner(namehash);
+    const managerCall = ensRegistry.owner(namehash);
+    const resolverCall = multicallProvider.getResolver(name);
 
-    const resolver = await multicallProvider.getResolver(name);
+    const [manager, resolver] = await Promise.all([managerCall, resolverCall]);
+
     if (!resolver) {
         throw new Error(`No resolver found for ${name}. Is the name registered?`);
     }
 
     const contract = new ethers.Contract(resolver.address, ABI.resolver, multicallProvider);
 
-    const calls = [
-        { key: 'manager', value: manager },
-        contract.addr(namehash).catch(() => null).then(result => {
-            if (result && result !== '0x0000000000000000000000000000000000000000') {
-                return { key: 'address', value: result };
-            }
-            return null;
-        }),
-        contract.contenthash(namehash).catch(() => null).then(result => {
-            const decoded = decodeContentHash(result);
-            if (decoded !== undefined) {
-                return { key: 'content', value: decoded };
-            }
-            return null;
-        }),
-        ...textKeys.map(key => resolver.getText(key).catch(() => null).then(result => {
-            if (result !== null && result !== undefined) {
-                return { key, value: result };
-            }
-            return null;
-        })),
-    ];
+    const addrCall = contract.addr(namehash).catch(() => null);
+    const contentHashCall = contract.contenthash(namehash).catch(() => null);
+    const textCalls = textKeys.map(key => contract.text(namehash, key).catch(() => null));
 
-    const results = await Promise.all(calls);
+    const [address, contentHash, ...textResults] = await Promise.all([
+        addrCall,
+        contentHashCall,
+        ...textCalls
+    ]);
+
+    const results = [
+        { key: 'manager', value: manager },
+        (address && address !== '0x0000000000000000000000000000000000000000') ? { key: 'address', value: address } : null,
+        (contentHash && decodeContentHash(contentHash) !== undefined) ? { key: 'content', value: decodeContentHash(contentHash) } : null,
+        ...textResults.map((result, index) => result !== null && result !== undefined ? { key: textKeys[index], value: result } : null),
+    ].filter(Boolean);
 
     return {
         results,

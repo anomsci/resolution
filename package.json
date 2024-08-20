@@ -1,0 +1,25 @@
+{
+  "name": "@anomsci/resolution",
+  "version": "1.0.0",
+  "description": "A simple resolution library for Ethereum Name Service (ENS) domains.",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@gitlab.com/anomsci/resolution.git"
+  },
+  "author": "Jacob Haap",
+  "license": "MIT",
+  "homepage": "https://github.com/anomsci/resolution/",
+  "dependencies": {
+    "@adraffy/ens-normalize": "^1.10.1",
+    "@ethers-ext/provider-multicall": "^6.0.0-beta.2",
+    "content-hash": "^2.5.2",
+    "dotenv": "^16.4.5",
+    "ethers": "^6.13.2",
+    "js-sha3": "^0.9.3",
+    "js-yaml": "^4.1.0"
+  }
+}

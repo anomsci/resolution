@@ -1,3 +1,5 @@
+const { textKeys } = require('./config');
+
 const prepareResult = (results, context) => {
     const {
         isSubname,
@@ -9,10 +11,7 @@ const prepareResult = (results, context) => {
         parentTokenData
     } = context;
 
-    const TEXT_KEYS = [
-        'avatar', 'description', 'display', 'email', 'keywords', 'mail', 
-        'notice', 'location', 'phone', 'url'
-    ];
+    const TEXT_KEYS = textKeys;
 
     const resolvedData = results.reduce((acc, item) => {
         if (item && item.value) {
@@ -26,45 +25,35 @@ const prepareResult = (results, context) => {
         return acc;
     }, {});
 
-    if (isSubname) {
-        if (status !== 'wrapped') {
-            return {
-                manager: resolvedData.manager,
-                ...resolvedData.address && { address: resolvedData.address },
-                ...resolvedData.content && { content: resolvedData.content },
-                ...resolvedData.text && { text: resolvedData.text },
-                parent: {
-                    owner: parentOwner,
-                    manager: parentManager,
-                    tokenId: parentTokenData?.tokenId,
-                    status: parentTokenData?.status,
-                }
-            };
-        }
+    const records = {
+        ...resolvedData.address && { address: resolvedData.address },
+        ...resolvedData.content && { content: resolvedData.content },
+        ...resolvedData.text && { text: resolvedData.text },
+    };
 
+    const parent = {
+        parent: {
+            owner: parentOwner,
+            manager: parentManager,
+            tokenId: parentTokenData?.tokenId,
+            status: parentTokenData?.status,
+        }
+    };
+
+    if (isSubname) {
         return {
-            owner,
+            ...status === 'wrapped' && { owner },
             manager: resolvedData.manager,
-            ...resolvedData.address && { address: resolvedData.address },
-            ...resolvedData.content && { content: resolvedData.content },
-            ...resolvedData.text && { text: resolvedData.text },
-            tokenId: tokenData?.tokenId,
-            status,
-            parent: {
-                owner: parentOwner,
-                manager: parentManager,
-                tokenId: parentTokenData?.tokenId,
-                status: parentTokenData?.status,
-            }
+            ...records,
+            ...status === 'wrapped' && { tokenId: tokenData?.tokenId, status },
+            ...parent
         };
     }
 
     return {
         owner,
         manager: resolvedData.manager,
-        ...resolvedData.address && { address: resolvedData.address },
-        ...resolvedData.content && { content: resolvedData.content },
-        ...resolvedData.text && { text: resolvedData.text },
+        ...records,
         tokenId: tokenData?.tokenId,
         status,
     };

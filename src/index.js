@@ -18,7 +18,7 @@ const resolve = async (nameInput) => {
             parentOwner = parentTokenData?.owner;
         }
 
-        const resolvedData = prepareResult(results, {
+        return prepareResult(results, {
             isSubname,
             status,
             tokenData,
@@ -27,8 +27,6 @@ const resolve = async (nameInput) => {
             parentManager,
             parentTokenData
         });
-
-        return resolvedData;
 
     } catch (error) {
         console.error(`Failed to resolve ENS name ${nameInput}: ${error.message}`);

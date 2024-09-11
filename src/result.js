@@ -59,4 +59,4 @@ const prepareResult = (results, context) => {
     };
 };
 
-module.exports = { prepareResult };
+module.exports = prepareResult;

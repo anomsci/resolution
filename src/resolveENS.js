@@ -1,6 +1,6 @@
 const { ethers } = require("ethers");
 const { getMulticallProvider } = require('./providers');
-const { decodeContentHash } = require('./contentHash');
+const decodeContentHash = require('./contentHash');
 const { ABI, contracts, textKeys } = require('./config');
 const { ens_normalize } = require('@adraffy/ens-normalize');
 

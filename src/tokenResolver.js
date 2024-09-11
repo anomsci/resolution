@@ -48,4 +48,4 @@ async function validateTokenIds(ensName) {
     return null;
 }
 
-module.exports = { validateTokenIds };
+module.exports = validateTokenIds;

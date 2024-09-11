@@ -1,6 +1,6 @@
 const { resolveENS, validateName } = require('./resolveENS');
-const { validateTokenIds } = require('./tokenResolver');
-const { prepareResult } = require('./result');
+const validateTokenIds = require('./tokenResolver');
+const prepareResult = require('./result');
 
 const resolve = async (nameInput) => {
     try {
@@ -34,4 +34,4 @@ const resolve = async (nameInput) => {
     }
 };
 
-module.exports = { resolve };
+module.exports = resolve;
